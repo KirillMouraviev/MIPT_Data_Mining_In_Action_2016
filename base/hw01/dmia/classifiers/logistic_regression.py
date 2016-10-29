@@ -46,8 +46,12 @@ class LogisticRegression:
             # Hint: Use np.random.choice to generate indices. Sampling with         #
             # replacement is faster than sampling without replacement.              #
             #########################################################################
-
-
+            indices = np.random.choice(X.shape[0], (batch_size), replace = True)
+            X_batch = X.toarray()[indices]
+            #print batch_size
+            #print indices.shape
+            #print 'X_batch 1: ', X_batch.shape
+            y_batch = y[indices]
             #########################################################################
             #                       END OF YOUR CODE                                #
             #########################################################################
@@ -60,8 +64,7 @@ class LogisticRegression:
             # TODO:                                                                 #
             # Update the weights using the gradient and the learning rate.          #
             #########################################################################
-
-
+            self.w = self.w + gradW * learning_rate
             #########################################################################
             #                       END OF YOUR CODE                                #
             #########################################################################
@@ -91,9 +94,15 @@ class LogisticRegression:
         # Implement this method. Store the probabilities of classes in y_proba.   #
         # Hint: It might be helpful to use np.vstack and np.sum                   #
         ###########################################################################
-
-
-
+        print X.shape
+        W = self.w * np.ones(X.shape)
+        print W.shape, X.shape
+        W_X = W * X.toarray()
+        sums = np.sum(W_X, axis = 1)
+        prob_of_1 = 1.0 / (1.0 + np.exp(sums))
+        prob_of_0 = 1.0 - prob_of_1
+        y_proba = np.hstack([prob_of_0[:, np.newaxis], prob_of_1[:, np.newaxis]])
+        print y_proba.shape
         ###########################################################################
         #                           END OF YOUR CODE                              #
         ###########################################################################
@@ -117,14 +126,14 @@ class LogisticRegression:
         # Implement this method. Store the predicted labels in y_pred.            #
         ###########################################################################
         y_proba = self.predict_proba(X, append_bias=True)
-        y_pred = ...
-
+        y_pred = y_proba.argmax(axis = 1)
         ###########################################################################
         #                           END OF YOUR CODE                              #
         ###########################################################################
         return y_pred
 
     def loss(self, X_batch, y_batch, reg):
+        #print 'x_batch: ', X_batch.shape
         """Logistic Regression loss function
         Inputs:
         - X: N x D array of data. Data are D-dimensional rows
@@ -135,7 +144,23 @@ class LogisticRegression:
         - gradient with respect to weights w; an array of same shape as w
         """
         dw = np.zeros_like(self.w)  # initialize the gradient as zero
-        loss = 0
+        W_X = self.w[np.newaxis, :] * np.ones(X_batch.shape) * X_batch
+        w_X = np.sum(W_X, axis = 1)
+        yp = 1.0 / (1.0 + np.exp(-w_X))
+        loss_array = y_batch * np.log(yp) + (1.0 - y_batch) * np.log(1.0 - yp)
+        #loss_array -= reg * np.sum(self.w ** 2)
+        loss = np.mean(loss_array)
+        #print loss_array.shape
+        #print 'x.shape: ', X_batch.shape
+        #print 'wx: ', w_X.shape
+        #print type(w_X)
+        #print 'f: ', f.shape
+        grad_array = (y_batch - yp)[:, np.newaxis] * X_batch
+        #grad_array -= 2 * reg * self.w
+        #grad_array[-1] += 2 * reg * self.w[-1]
+        grad = np.sum(grad_array, axis = 0) / X_batch.shape[0]
+        print loss
+        #print 'grad: ', grad.shape
         # Compute loss and gradient. Your code should not contain python loops.
 
 
@@ -146,10 +171,8 @@ class LogisticRegression:
 
         # Add regularization to the loss and gradient.
         # Note that you have to exclude bias term in regularization.
-
-
-        return loss, dw
+        return loss, grad
 
     @staticmethod
     def append_biases(X):
-        return sparse.hstack((X, np.ones(X.shape[0])[:, np.newaxis])).tocsr()
+        return sparse.hstack((X, np.ones(X.shape[0])[:, np.newaxis]))
